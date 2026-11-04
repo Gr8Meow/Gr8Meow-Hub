@@ -1,0 +1,17 @@
+[
+  {
+    "id": "meowplayer",
+    "name": "Meow Player",
+    "description": "Fast, light, free media player. Plays almost any audio and video format.",
+    "repo": "Gr8Meow/Meow-player-Updates",
+    "asset": "MeowPlayer-windows-x64.zip",
+    "exe": "meowplayer.exe"
+  },
+  {
+    "id": "livewall",
+    "name": "LiveWall",
+    "description": "Free live wallpapers for Windows with very low resource use.",
+    "repo": "Gr8Meow/live-wallpaper-Updates",
+    "asset": ".zip"
+  }
+]
