@@ -1,0 +1,71 @@
+name: Build Gr8Meow Hub
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Generate version.h from the release tag
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if ($env:REF_NAME -match '^v(\d+(\.\d+){0,3})$') { $ver = $Matches[1] } else { $ver = "0.0.0-dev" }
+          "#define APP_VERSION `"$ver`"" | Out-File version.h -Encoding ascii
+          Get-Content version.h
+
+      - name: Compile (hardened)
+        shell: cmd
+        run: >
+          cl /O2 /EHsc /MT /GS /guard:cf /DUNICODE /D_UNICODE gr8meowhub.cpp
+          /link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup
+          /guard:cf /DYNAMICBASE /NXCOMPAT /HIGHENTROPYVA /DEPENDENTLOADFLAG:0x800
+          user32.lib gdi32.lib shell32.lib ole32.lib advapi32.lib
+          shlwapi.lib dwmapi.lib gdiplus.lib winhttp.lib bcrypt.lib
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/Gr8MeowHub | Out-Null
+          Copy-Item gr8meowhub.exe, LICENSE, README.md dist/Gr8MeowHub/
+          Compress-Archive -Path dist/Gr8MeowHub -DestinationPath Gr8MeowHub-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gr8MeowHub-windows-x64
+          path: Gr8MeowHub-windows-x64.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Gr8MeowHub-windows-x64
+      - name: Checksum
+        run: sha256sum Gr8MeowHub-windows-x64.zip > Gr8MeowHub-windows-x64.zip.sha256
+      # Publishes into the PUBLIC Updates repo. Needs the secret UPDATES_TOKEN (see README).
+      - uses: softprops/action-gh-release@v2
+        with:
+          repository: Gr8Meow/Gr8Meow-Hub-Updates
+          token: ${{ secrets.UPDATES_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: Gr8Meow Hub ${{ github.ref_name }}
+          files: |
+            Gr8MeowHub-windows-x64.zip
+            Gr8MeowHub-windows-x64.zip.sha256
